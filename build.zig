@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
 
     const zig_rc = b.dependency("zig_rc", .{});
 
-    const mod = b.addModule("zig_pub_sub", .{
+    const mod = b.addModule("zig_pubsub", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
     });
@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
             .imports = &.{
-                .{ .name = "zig_pub_sub", .module = mod },
+                .{ .name = "zig_pubsub", .module = mod },
             },
         }),
     });
@@ -37,7 +37,15 @@ pub fn build(b: *std.Build) void {
     run_cmd.addPassthruArgs();
 
     const mod_tests = b.addTest(.{
-        .root_module = mod,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/root.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_pubsub", .module = mod },
+                .{ .name = "zig_rc", .module = zig_rc.module("zig_rc") },
+            },
+        }),
     });
     const run_mod_tests = b.addRunArtifact(mod_tests);
 

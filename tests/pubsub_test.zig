@@ -1,11 +1,11 @@
 const std = @import("std");
-const pub_sub = @import("root.zig");
+const pubsub = @import("zig_pubsub");
 
 const Event = union(enum) {
     number: u32,
     signal: void,
 };
-const Bus = pub_sub.PubSub(Event);
+const Bus = pubsub.Bus(Event);
 
 test "union variants map to compile-time topic slots" {
     try std.testing.expectEqual(@as(usize, 2), Bus.topic_count);
@@ -233,7 +233,7 @@ test "publish copies pointer and slice payloads by value" {
         number: u32,
         borrowed: struct { data: []const u8, pointer: *const u32 },
     };
-    const PointerBus = pub_sub.PubSub(Message);
+    const PointerBus = pubsub.Bus(Message);
     var bus = PointerBus.init(std.testing.allocator);
     const first = try bus.subscribe(std.testing.io, .borrowed, 1);
     const second = try bus.subscribe(std.testing.io, .borrowed, 1);

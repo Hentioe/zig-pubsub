@@ -1,16 +1,15 @@
 const std = @import("std");
 const mem = std.mem;
 const Io = std.Io;
-const rc = @import("zig_rc");
 const Allocator = mem.Allocator;
 const subscriptions = @import("subscriptions.zig");
+const rc = @import("zig_rc");
 
 /// 汇总所有发布操作可选的行为，默认不保留主题消息。
 pub const PublishOptions = struct {
     retain: bool = false,
 };
 
-pub const SubscriptionState = subscriptions.State;
 pub const SubscribeError = Io.Cancelable || Allocator.Error || error{
     Closed,
     SubscriptionIdsExhausted, // 订阅编号耗尽
@@ -28,7 +27,7 @@ pub const PublishResult = struct {
 };
 
 /// 根据消息 union 在编译期生成固定主题表，避免主题数量与消息定义分离。
-pub fn PubSub(comptime Message: type) type {
+pub fn Bus(comptime Message: type) type {
     const info = @typeInfo(Message);
     if (info != .@"union") @compileError("PubSub message type must be a union");
     const union_info = info.@"union";
@@ -187,9 +186,4 @@ pub fn MessageHelper(comptime Message: type) type {
             }
         }
     };
-}
-
-test {
-    _ = @import("pubsub_test.zig");
-    _ = @import("deinit_test.zig");
 }

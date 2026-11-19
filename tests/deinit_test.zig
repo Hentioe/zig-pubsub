@@ -1,8 +1,8 @@
 const std = @import("std");
-const zpx = @import("root.zig");
+const pubsub = @import("zig_pubsub");
 
 const Event = union(enum) { number: u32, signal: void };
-const Bus = zpx.PubSub(Event);
+const Bus = pubsub.Bus(Event);
 
 /// 在独立线程中接收，以验证关闭会唤醒真实的并发操作。
 const Reader = struct {

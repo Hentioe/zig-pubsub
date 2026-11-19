@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const pub_sub = @import("zig_pub_sub");
+const pubsub = @import("zig_pubsub");
 const rc = @import("zig_rc");
 
 // 每个 union 变体代表一个主题，其载荷类型可以彼此不同。
@@ -10,7 +10,7 @@ const Message = union(enum) {
     user: rc.Arc(User), // 引用计数容器包装的数据，发送前会自动增加计数。共享给多个接收方，也能安全释放。
 };
 
-const Bus = pub_sub.PubSub(Message);
+const MessageBug = pubsub.Bus(Message);
 
 const User = struct {
     name: []u8,
@@ -26,7 +26,7 @@ const User = struct {
 
 /// 展示两个订阅者分别接收普通值消息和 Arc 消息。
 pub fn main(init: std.process.Init) !void {
-    var bus = Bus.init(init.arena.allocator());
+    var bus = MessageBug.init(init.arena.allocator());
     defer bus.deinit(init.io);
 
     try demonstrateValues(&bus, init.io);
@@ -34,7 +34,7 @@ pub fn main(init: std.process.Init) !void {
 }
 
 /// 展示两个订阅者接收同一主题的纯值消息。
-fn demonstrateValues(bus: *Bus, io: std.Io) !void {
+fn demonstrateValues(bus: *MessageBug, io: std.Io) !void {
     // 每次订阅都会分配独立的节点与队列，取消订阅时一并销毁。
     const first = try bus.subscribe(io, .temperature, 1);
     defer bus.unsubscribe(io, first);
@@ -55,7 +55,7 @@ fn demonstrateValues(bus: *Bus, io: std.Io) !void {
 }
 
 /// 展示 Arc 消息投递给多个订阅者，并在每个订阅者处释放。
-fn demonstrateArc(bus: *Bus, io: std.Io, allocator: Allocator) !void {
+fn demonstrateArc(bus: *MessageBug, io: std.Io, allocator: Allocator) !void {
     // 两个订阅各有独立队列，发布时会分别增加一次引用计数。
     const first = try bus.subscribe(io, .user, 1);
     defer bus.unsubscribe(io, first);
