@@ -172,7 +172,7 @@ pub fn MessageHelper(comptime Message: type) type {
 
         pub fn prepareShare(self: *@This()) void {
             switch (self.message) {
-                inline else => |payload| if (comptime rc.isArc(@TypeOf(payload))) {
+                inline else => |payload| if (comptime rc.isAtomicShared(@TypeOf(payload))) {
                     payload.retain();
                 },
             }
@@ -180,7 +180,7 @@ pub fn MessageHelper(comptime Message: type) type {
 
         pub fn cancelShare(self: *@This(), allocator: Allocator) void {
             switch (self.message) {
-                inline else => |payload| if (comptime rc.isArc(@TypeOf(payload))) {
+                inline else => |payload| if (comptime rc.isAtomicShared(@TypeOf(payload))) {
                     payload.release(allocator);
                 },
             }

@@ -7,7 +7,7 @@ const rc = @import("zig_rc");
 const Message = union(enum) {
     temperature: f32,
     status: u8,
-    user: rc.Arc(User), // 引用计数容器包装的数据，发送前会自动增加计数。共享给多个接收方，也能安全释放。
+    user: rc.AtomicShared(User), // 引用计数容器包装的数据，发送前会自动增加计数。共享给多个接收方，也能安全释放。
 };
 
 const MessageBug = pubsub.Bus(Message);
@@ -24,13 +24,13 @@ const User = struct {
     }
 };
 
-/// 展示两个订阅者分别接收普通值消息和 Arc 消息。
+/// 展示两个订阅者分别接收普通值消息和 AtomicShared 消息。
 pub fn main(init: std.process.Init) !void {
     var bus = MessageBug.init(init.arena.allocator());
     defer bus.deinit(init.io);
 
     try demonstrateValues(&bus, init.io);
-    try demonstrateArc(&bus, init.io, init.gpa);
+    try demonstrateAtomicShared(&bus, init.io, init.gpa);
 }
 
 /// 展示两个订阅者接收同一主题的纯值消息。
@@ -54,8 +54,8 @@ fn demonstrateValues(bus: *MessageBug, io: std.Io) !void {
     std.debug.print("second temperature={d}\n", .{received[0].temperature});
 }
 
-/// 展示 Arc 消息投递给多个订阅者，并在每个订阅者处释放。
-fn demonstrateArc(bus: *MessageBug, io: std.Io, allocator: Allocator) !void {
+/// 展示 AtomicShared 消息投递给多个订阅者，并在每个订阅者处释放。
+fn demonstrateAtomicShared(bus: *MessageBug, io: std.Io, allocator: Allocator) !void {
     // 两个订阅各有独立队列，发布时会分别增加一次引用计数。
     const first = try bus.subscribe(io, .user, 1);
     defer bus.unsubscribe(io, first);
@@ -63,7 +63,7 @@ fn demonstrateArc(bus: *MessageBug, io: std.Io, allocator: Allocator) !void {
     defer bus.unsubscribe(io, second);
 
     var user: User = .{ .name = try allocator.dupe(u8, "Alen") };
-    const shared_user: rc.Arc(User) = try .fromOwned(allocator, &user);
+    const shared_user: rc.AtomicShared(User) = try .fromOwned(allocator, &user);
     defer shared_user.release(allocator); // 发送前会增加引用计数，所以创建者自己要释放一次。
 
     const result = try bus.publish(io, .{ .user = shared_user });
