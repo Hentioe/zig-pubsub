@@ -9,6 +9,7 @@ const rc = @import("zig_rc");
 pub const PublishOptions = struct {
     retain: bool = false,
 };
+pub const AtomicShared = rc.AtomicShared;
 
 pub const SubscribeError = Io.Cancelable || Allocator.Error || error{
     Closed,
