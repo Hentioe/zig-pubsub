@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .zig_rc = .{
-            .url = "git+https://github.com/Hentioe/zig-rc#a9f07173a424c04d8720488cee29e1f2d2823598",
-            .hash = "zig_rc-0.0.0-sNsiIj5PAAAoCdbGskfcAmBbp2C9RTozz5R6nn9isIDs",
+            .url = "git+https://github.com/Hentioe/zig-rc#73c2535866891369128756d90434566956199b77",
+            .hash = "zig_rc-0.0.0-sNsiItRPAAC653JTVAXCAkW6RWldOLVnMtH8CWq-Fk2W",
         },
     },
     .paths = .{
