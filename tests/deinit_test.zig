@@ -7,7 +7,7 @@ const Bus = pubsub.Bus(Event);
 /// 在独立线程中接收，以验证关闭会唤醒真实的并发操作。
 const Reader = struct {
     subscription: Bus.Subscription,
-    result: (std.Io.QueueClosedError || std.Io.Cancelable)!usize = 0,
+    result: pubsub.RecvError!usize = 0,
     output: [1]Event = undefined,
 
     fn run(self: *Reader) void {
@@ -52,8 +52,8 @@ test "deinit wakes readers and releases all topics idempotently" {
     try std.testing.expectError(error.Closed, bus.publish(std.testing.io, .{ .number = 1 }));
     try std.testing.expectError(error.Closed, bus.subscribe(std.testing.io, .number, 1));
     var output: [1]Event = undefined;
-    try std.testing.expectError(error.Closed, first.recv(std.testing.io, &output, 0));
-    try std.testing.expectError(error.Closed, second.recv(std.testing.io, &output, 1));
+    try std.testing.expectError(error.NotSubscribed, first.recv(std.testing.io, &output, 0));
+    try std.testing.expectError(error.NotSubscribed, second.recv(std.testing.io, &output, 1));
 }
 
 test "unsubscribe wakes a blocked receiver before freeing its queue" {
@@ -68,7 +68,7 @@ test "unsubscribe wakes a blocked receiver before freeing its queue" {
     thread.join();
     try std.testing.expectError(error.Closed, reader.result);
     var output: [1]Event = undefined;
-    try std.testing.expectError(error.Closed, subscription.recv(std.testing.io, &output, 0));
+    try std.testing.expectError(error.NotSubscribed, subscription.recv(std.testing.io, &output, 0));
 }
 
 test "deinit releases buffered messages and empty publishers" {
@@ -80,7 +80,7 @@ test "deinit releases buffered messages and empty publishers" {
     bus.deinit(std.testing.io);
     try std.testing.expectEqual(tracking.allocations, tracking.deallocations);
     var output: [1]Event = undefined;
-    try std.testing.expectError(error.Closed, subscription.recv(std.testing.io, &output, 0));
+    try std.testing.expectError(error.NotSubscribed, subscription.recv(std.testing.io, &output, 0));
 
     var empty = Bus.init(std.testing.allocator);
     empty.deinit(std.testing.io);

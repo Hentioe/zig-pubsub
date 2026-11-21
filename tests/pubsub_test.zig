@@ -190,7 +190,7 @@ test "a waiting subscriber receives a later publish" {
     const Reader = struct {
         subscription: Bus.Subscription,
         ready: std.Io.Event = .unset,
-        result: (std.Io.QueueClosedError || std.Io.Cancelable)!usize = 0,
+        result: pubsub.RecvError!usize = 0,
         output: [1]Event = undefined,
 
         fn run(reader: *@This()) void {
@@ -225,6 +225,30 @@ test "queue preserves order before unsubscribe" {
     bus.unsubscribe(std.testing.io, subscription);
     const after = try bus.publish(std.testing.io, .{ .number = 3 });
     try std.testing.expectEqual(@as(usize, 0), after.delivered);
+}
+
+test "close drains buffered messages before unsubscribe" {
+    var bus = Bus.init(std.testing.allocator);
+    const subscription = try bus.subscribe(std.testing.io, .number, 2);
+
+    try std.testing.expectEqual(@as(usize, 1), (try bus.publish(std.testing.io, .{ .number = 1 })).delivered);
+    try std.testing.expectEqual(@as(usize, 1), (try bus.publish(std.testing.io, .{ .number = 2 })).delivered);
+
+    // close 只关闭队列，不从发布者路由摘除节点。
+    subscription.close(std.testing.io);
+
+    var output: [2]Event = undefined;
+    try std.testing.expectEqual(@as(usize, 2), try subscription.recv(std.testing.io, &output, 0));
+    try std.testing.expectEqual(@as(u32, 1), output[0].number);
+    try std.testing.expectEqual(@as(u32, 2), output[1].number);
+
+    // 队列空后继续接收应返回 Closed，且新发布不能再次进入。
+    try std.testing.expectError(error.Closed, subscription.recv(std.testing.io, &output, 0));
+    try std.testing.expectEqual(@as(usize, 0), (try bus.publish(std.testing.io, .{ .number = 3 })).delivered);
+
+    // 排空并等待接收者退出后，再移除节点并释放队列。
+    bus.unsubscribe(std.testing.io, subscription);
+    try std.testing.expectError(error.NotSubscribed, subscription.recv(std.testing.io, &output, 0));
 }
 
 test "publish copies pointer and slice payloads by value" {

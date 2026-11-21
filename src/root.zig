@@ -16,6 +16,8 @@ pub const SubscribeError = Io.Cancelable || Allocator.Error || error{
     SubscriptionIdsExhausted, // 订阅编号耗尽
 };
 pub const PublishError = error{Closed};
+/// 接收订阅消息时可能返回的错误集合。
+pub const RecvError = subscriptions.RecvError;
 
 /// 一次发布中成功投递、队列已满和队列已关闭的订阅数量。
 pub const PublishResult = struct {

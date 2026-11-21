@@ -1,5 +1,12 @@
 const std = @import("std");
 
+/// 接收订阅消息时可能返回的独立错误集。
+/// QueueClosedError 表示队列已关闭；Cancelable 表示接收操作被取消；
+/// NotSubscribed 表示句柄对应的订阅节点已不存在于发布者路由中。
+pub const RecvError = std.Io.QueueClosedError || std.Io.Cancelable || error{
+    NotSubscribed,
+};
+
 /// 表示订阅是否挂接在某个发布者的路由中。
 pub const State = enum { active, canceled };
 
@@ -53,11 +60,27 @@ pub fn Subscription(comptime Message: type, comptime Tag: type, comptime Owner: 
             }
         };
 
+        /// 关闭订阅队列，但保留节点在发布者路由中。
+        /// 关闭后禁止新消息进入；队列中已有消息仍可通过 recv 接收完毕。
+        /// 调用方随后应等待接收者退出，再调用 unsubscribe 移除并释放节点。
+        pub fn close(self: @This(), io: std.Io) void {
+            const owner = self.owner;
+            owner.lock.lockSharedUncancelable(io);
+            defer owner.lock.unlockShared(io);
+            var next = owner.topics[Owner.topicIndex(self.topic)].subscribers;
+            while (next) |node| : (next = node.next_for_topic) {
+                if (node.id == self.id) {
+                    node.queue.close(io);
+                    return;
+                }
+            }
+        }
+
         /// 批量接收消息并写入 buffer，返回实际写入的消息数量。
         /// min 为零时轮询，否则等待至少 min 条消息；关闭或取消时可能提前返回部分消息。
         /// buffer 的长度必须不小于 min；取消或发布者关闭会关闭队列并唤醒等待者。
         /// 发布者实例必须保持有效，直至所有并发操作返回。
-        pub fn recv(self: @This(), io: std.Io, buffer: []Message, min: usize) (std.Io.QueueClosedError || std.Io.Cancelable)!usize {
+        pub fn recv(self: @This(), io: std.Io, buffer: []Message, min: usize) RecvError!usize {
             const owner = self.owner;
             try owner.lock.lockShared(io);
             var next = owner.topics[Owner.topicIndex(self.topic)].subscribers;
@@ -77,7 +100,7 @@ pub fn Subscription(comptime Message: type, comptime Tag: type, comptime Owner: 
                 return node.queue.get(io, buffer, min);
             }
             owner.lock.unlockShared(io);
-            return error.Closed;
+            return error.NotSubscribed;
         }
     };
 }
